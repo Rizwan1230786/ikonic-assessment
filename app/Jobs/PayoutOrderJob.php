@@ -43,5 +43,6 @@ class PayoutOrderJob implements ShouldQueue
         if ($this->order->wasChanged('payout_status') && $this->order->payout_status === Order::STATUS_PAID) {
             $apiService->sendPayout($this->order->affiliate->user->email, $this->order->commission_owed);
         }
+        return $this->order;
     }
 }

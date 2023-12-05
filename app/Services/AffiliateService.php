@@ -31,6 +31,18 @@ class AffiliateService
      */
     public function register(Merchant $merchant, string $email, string $name, float $commissionRate): Affiliate
     {
+        $merchantUserEmail = $merchant->user->email;
+
+        // Check if the provided email is already used as a merchant or an affiliate
+        $userAsMerchant = User::where('email', $email)->where('type', User::TYPE_MERCHANT)->first();
+        $userAsAffiliate = User::where('email', $email)->where('type', User::TYPE_AFFILIATE)->first();
+
+        if ($userAsMerchant || $merchantUserEmail === $email) {
+            throw new AffiliateCreateException('Email is already in use as a merchant.');
+        } elseif ($userAsAffiliate) {
+            throw new AffiliateCreateException('Email is already in use as an affiliate.');
+        }
+
         if ($merchant->user->email == $email) { //check if email use as merchant 
             $user_id = $merchant->user->id;
             $merchant_id = $merchant->id;
@@ -59,9 +71,9 @@ class AffiliateService
             ];
             $affiliate = Affiliate::create($affiliate_data);
 
-            // if ($affiliate) {
-            //     Mail::to($email)->send(new AffiliateCreated($affiliate));
-            // }
+            if ($affiliate) {
+                Mail::to($email)->send(new AffiliateCreated($affiliate));
+            }
         }
         return $affiliate;
     }

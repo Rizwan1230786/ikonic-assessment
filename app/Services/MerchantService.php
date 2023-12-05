@@ -22,24 +22,20 @@ class MerchantService
      */
     public function register(array $data): Merchant
     {
-        $user_data = [
+        $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => Hash::make($data['api_key']),
+            'password' => $data['api_key'],
             'type' => User::TYPE_MERCHANT
-        ];
+        ]);
 
-        $user = User::create($user_data);
-
-        $user_record = User::find($user->id);
-
-        $merchant_data = [
-            'user_id' => $user_record->id,
+        $merchant = Merchant::create([
+            'user_id' => $user->id,
             'domain' => $data['domain'],
-            'display_name' => $data['name']
-        ];
+            'display_name' => $data['name'] // Assuming display_name should initially be the same as the user's name
+        ]);
 
-        return Merchant::create($merchant_data);
+        return $merchant;
     }
 
 
@@ -52,13 +48,13 @@ class MerchantService
     public function updateMerchant(User $user, array $data)
     {
         $merchant = Merchant::where('user_id', $user->id)->first();
-        $merchant_data = [
-            'domain' => $data['domain'],
-            'display_name' => $data['display_name']
-        ];
 
-
-        return $merchant->update($merchant_data);
+        if ($merchant) {
+            $merchant->update([
+                'domain' => $data['domain'],
+                'display_name' => $data['name']
+            ]);
+        }
     }
 
     /**
@@ -70,8 +66,13 @@ class MerchantService
      */
     public function findMerchantByEmail(string $email): ?Merchant
     {
-        $user =  User::where('email', $email)->first();
-        return isset($user->merchant) ? $user->merchant : [];
+        $user = User::where('email', $email)->first();
+
+        if ($user) {
+            return $user->merchant; // Return associated merchant if user exists
+        }
+
+        return null; // Return null when user doesn't exist or has no associated merchant
     }
 
     /**
@@ -83,12 +84,15 @@ class MerchantService
      */
     public function payout(Affiliate $affiliate)
     {
-        $orders = $affiliate->orders;
+        $unpaidOrders = $affiliate->orders()->where('payout_status', Order::STATUS_UNPAID)->get();
 
-        foreach ($orders as $order) {
-            if ($order->refresh()->payout_status == Order::STATUS_UNPAID) {
-                dispatch(new PayoutOrderJob($order));
-            }
+        foreach ($unpaidOrders as $order) {
+            // Update the order payout status to PAID
+            $order->update(['payout_status' => Order::STATUS_PAID]);
+
+            // Dispatch a job for processing the payout
+            PayoutOrderJob::dispatch($order)->onQueue('payout'); // Specify the queue if required
         }
+        return $unpaidOrders;
     }
 }
