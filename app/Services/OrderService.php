@@ -33,9 +33,9 @@ class OrderService
         if ($orderExists) {
             return null; // Order already exists, no action needed
         }
-    
+
         $affiliate = Affiliate::where('discount_code', $data['discount_code'])->first();
-    
+
         if (!$affiliate) {
             $merchant = Merchant::where('domain', $data['merchant_domain'])->first();
             $user = User::factory()->create();
@@ -46,18 +46,18 @@ class OrderService
                     'discount_code' => $data['discount_code']
                 ]);
         }
-    
+
         $merchantId = Merchant::where('domain', $data['merchant_domain'])->value('id');
         $commissionRate = $affiliate ? $affiliate->commission_rate : 0.1;
-    
+
         $commissionOwed = $data['subtotal_price'] * $commissionRate;
         $affiliateId = $affiliate ? $affiliate->id : null;
-    
+
         // If there's no affiliate, set the commission owed to zero for the order
         if (!$affiliate) {
             $commissionOwed = 0;
         }
-    
+
         $order = Order::create([
             'subtotal' => $data['subtotal_price'],
             'discount_code' => $data['discount_code'],
@@ -67,8 +67,8 @@ class OrderService
             'commission_owed' => $commissionOwed,
             'external_order_id' => $data['order_id']
         ]);
-    
+
         return $order;
     }
-    
+
 }
